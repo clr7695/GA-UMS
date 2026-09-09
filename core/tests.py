@@ -483,3 +483,11 @@ class CourseSearchViewTests(TestCase):
             {"department": self.math.id, "year": "2026", "semester": "Spring"},
         )
         self.assertEqual(response.context["sections"].count(), 0)
+
+    def test_page_render_does_not_n_plus_one_on_department(self):
+        # Rendering department/professor names for N sections should take a
+        # fixed number of queries, not one extra query per row.
+        self.client.login(username="student1", password="testpass123")
+        with self.assertNumQueries(5):
+            response = self.client.get(reverse("course_search"))
+            str(response.content)

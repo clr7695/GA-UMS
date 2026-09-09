@@ -133,7 +133,7 @@ def course_search(request):
     if semester:
         sections = sections.filter(semester=semester)
 
-    sections = sections.select_related("course", "professor").order_by("course__title")
+    sections = sections.select_related("course__department", "professor").order_by("course__title")
 
     return render(
         request,
