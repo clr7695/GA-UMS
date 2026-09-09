@@ -155,8 +155,10 @@ it, just detach the link.
   `authenticate()`/`set_password()` are the only ways the app touches
   passwords.
 
-- **No secrets in version control.** The MySQL password is read from
-  `os.environ["MYSQL_PASSWORD"]`, populated locally by a `.env` file that is
+- **No secrets in version control.** The MySQL password and Django's
+  `SECRET_KEY` (used to sign sessions and CSRF tokens) are both read from
+  environment variables (`os.environ["MYSQL_PASSWORD"]`,
+  `os.environ["SECRET_KEY"]`), populated locally by a `.env` file that is
   listed in `.gitignore` and therefore never committed. A `.env.example`
   placeholder is committed instead, so anyone cloning the repo knows which
-  variable to set without ever seeing the real credential.
+  variables to set without ever seeing the real values.
