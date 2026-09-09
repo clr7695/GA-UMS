@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Dashboard</h1>
+{% if role %}
+<p>You are logged in as <strong>{{ role }}</strong>.</p>
+{% if role == "admin" %}
+<ul>
+    <li><a href="{% url 'roster' %}">Professor Roster</a></li>
+    <li><a href="{% url 'salary' %}">Salary Table</a></li>
+    <li><a href="/admin/">Manage Data (Django Admin)</a></li>
+</ul>
+{% endif %}
+{% if role == "professor" %}
+<ul>
+    <li><a href="{% url 'my_sections' %}">My Sections</a></li>
+    <li><a href="{% url 'section_roster' %}">Section Roster</a></li>
+</ul>
+{% endif %}
+{% if role == "student" %}
+<ul>
+    <li><a href="{% url 'course_search' %}">Course Search</a></li>
+</ul>
+{% endif %}
+{% else %}
+<div class="alert alert-warning">
+    Your account has no role assigned yet. Ask an admin to link a UserProfile to your account.
+</div>
+{% endif %}
+{% endblock %}
