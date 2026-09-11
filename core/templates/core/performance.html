@@ -1,0 +1,68 @@
+{% extends "core/base.html" %}
+{% block title %}Professor Performance{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Professor Performance</h1>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select class="form-select" name="professor_id">
+            <option value="">Choose a professor...</option>
+            {% for prof in professors %}
+            <option value="{{ prof.id }}" {% if professor_id == prof.id|stringformat:"s" %}selected{% endif %}>
+                {{ prof.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select class="form-select" name="semester">
+            <option value="" {% if not semester %}selected{% endif %}>Choose a semester...</option>
+            <option value="Fall" {% if semester == "Fall" %}selected{% endif %}>Fall</option>
+            <option value="Spring" {% if semester == "Spring" %}selected{% endif %}>Spring</option>
+            <option value="Summer" {% if semester == "Summer" %}selected{% endif %}>Summer</option>
+            <option value="Winter" {% if semester == "Winter" %}selected{% endif %}>Winter</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <input class="form-control" type="number" name="year" placeholder="Academic Year" value="{{ year }}">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" type="submit">Show Performance</button>
+    </div>
+</form>
+
+{% if professor and stats %}
+<table class="table table-striped table-bordered w-auto">
+    <tbody>
+        <tr>
+            <th>Professor</th>
+            <td>{{ professor.name }}</td>
+        </tr>
+        <tr>
+            <th>Semester</th>
+            <td>{{ semester }} {{ year }}</td>
+        </tr>
+        <tr>
+            <th>Course sections taught</th>
+            <td>{{ stats.section_count }}</td>
+        </tr>
+        <tr>
+            <th>Students taught</th>
+            <td>{{ stats.student_count }}</td>
+        </tr>
+        <tr>
+            <th>Total funding secured</th>
+            <td>{{ stats.total_funding }}</td>
+        </tr>
+        <tr>
+            <th>Papers published</th>
+            <td>{{ stats.paper_count }}</td>
+        </tr>
+    </tbody>
+</table>
+{% elif professor_id or year or semester %}
+<div class="alert alert-warning">
+    Choose a professor, an academic year, and a semester to see performance data.
+</div>
+{% endif %}
+{% endblock %}

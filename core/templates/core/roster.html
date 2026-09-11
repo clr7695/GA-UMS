@@ -2,6 +2,31 @@
 {% block title %}Professor Roster{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">Professor Roster</h1>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5 card-title">Add Professor</h2>
+        <form method="post" class="row g-2">
+            {% csrf_token %}
+            <div class="col-auto">
+                {{ form.name }}
+                {% for error in form.name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-auto">
+                {{ form.department }}
+                {% for error in form.department.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-auto">
+                {{ form.salary }}
+                {% for error in form.salary.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" type="submit">Add Professor</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <table class="table table-striped table-bordered">
     <thead>
         <tr>

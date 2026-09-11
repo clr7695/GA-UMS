@@ -1,10 +1,12 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, Max, Min
+from django.db.models import Avg, Count, Max, Min, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from core.decorators import role_required
-from core.models import Department, Enrollment, Professor, Section
+from core.forms import EnrollmentForm, ProfessorForm, SectionForm
+from core.models import Department, Enrollment, Funding, Paper, Professor, Section
 
 
 def login_view(request):
@@ -47,11 +49,20 @@ PROFESSOR_SORT_FIELDS = {
 def professor_roster(request):
     sort = request.GET.get("sort", "name")
     sort_field = PROFESSOR_SORT_FIELDS.get(sort, "name")
+
+    if request.method == "POST":
+        form = ProfessorForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect(f"{reverse('roster')}?sort={sort}")
+    else:
+        form = ProfessorForm()
+
     professors = Professor.objects.select_related("department").order_by(sort_field)
     return render(
         request,
         "core/roster.html",
-        {"professors": professors, "sort": sort},
+        {"professors": professors, "sort": sort, "form": form},
     )
 
 
@@ -65,11 +76,62 @@ def salary_table(request):
     return render(request, "core/salary.html", {"results": results})
 
 
+@role_required("admin")
+def professor_performance(request):
+    professors = Professor.objects.order_by("name")
+
+    professor_id = request.GET.get("professor_id") or ""
+    year = request.GET.get("year") or ""
+    semester = request.GET.get("semester") or ""
+
+    professor = None
+    stats = None
+    if professor_id and year.isdigit() and semester:
+        professor = get_object_or_404(Professor, pk=professor_id)
+        sections = Section.objects.filter(professor=professor, year=int(year), semester=semester)
+        student_count = (
+            Enrollment.objects.filter(section__in=sections).values("student").distinct().count()
+        )
+        total_funding = Funding.objects.filter(professor=professor).aggregate(total=Sum("amount"))[
+            "total"
+        ] or 0
+        paper_count = Paper.objects.filter(professor=professor).count()
+        stats = {
+            "section_count": sections.count(),
+            "student_count": student_count,
+            "total_funding": total_funding,
+            "paper_count": paper_count,
+        }
+
+    return render(
+        request,
+        "core/performance.html",
+        {
+            "professors": professors,
+            "professor": professor,
+            "professor_id": professor_id,
+            "year": year,
+            "semester": semester,
+            "stats": stats,
+        },
+    )
+
+
 @role_required("professor")
 def my_sections(request):
     professor = request.user.userprofile.professor
     if professor is None:
         return render(request, "core/my_sections.html", {"no_professor": True})
+
+    if request.method == "POST":
+        form = SectionForm(request.POST)
+        if form.is_valid():
+            section = form.save(commit=False)
+            section.professor = professor
+            section.save()
+            return redirect("my_sections")
+    else:
+        form = SectionForm()
 
     semester = request.GET.get("semester") or ""
     year = request.GET.get("year") or ""
@@ -89,7 +151,7 @@ def my_sections(request):
     return render(
         request,
         "core/my_sections.html",
-        {"sections": sections, "semester": semester, "year": year},
+        {"sections": sections, "semester": semester, "year": year, "form": form},
     )
 
 
@@ -103,9 +165,24 @@ def section_roster(request):
 
     chosen_section = None
     enrollments = None
-    section_id = request.GET.get("section_id")
+    form = None
+    section_id = request.GET.get("section_id") or request.POST.get("section_id")
     if section_id:
         chosen_section = get_object_or_404(Section, pk=section_id, professor=professor)
+        already_enrolled_ids = Enrollment.objects.filter(section=chosen_section).values_list(
+            "student_id", flat=True
+        )
+
+        if request.method == "POST":
+            form = EnrollmentForm(request.POST, already_enrolled_ids=already_enrolled_ids)
+            if form.is_valid():
+                enrollment = form.save(commit=False)
+                enrollment.section = chosen_section
+                enrollment.save()
+                return redirect(f"{reverse('section_roster')}?section_id={chosen_section.id}")
+        else:
+            form = EnrollmentForm(already_enrolled_ids=already_enrolled_ids)
+
         enrollments = Enrollment.objects.filter(section=chosen_section).select_related("student")
 
     return render(
@@ -115,6 +192,7 @@ def section_roster(request):
             "sections": my_own_sections,
             "chosen_section": chosen_section,
             "enrollments": enrollments,
+            "form": form,
         },
     )
 

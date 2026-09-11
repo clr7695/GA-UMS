@@ -3,6 +3,12 @@
 This manual explains how to use each feature of the system, organized by the
 role that can access it. All features require logging in first.
 
+**Scope note:** this system implements all six features, F1–F6, from the
+project specification (see [`docs/PROJECT_SPECIFICATION.md`](docs/PROJECT_SPECIFICATION.md)
+for the full assignment text). The assignment's deliverables describe the
+required minimum as "F1 to F6 except F3," but F3 (Performance) is included
+here as well.
+
 ## Logging In
 
 1. Navigate to the site's home page (`/`).
@@ -36,6 +42,12 @@ returns a 403 Forbidden page.
 3. Click a column header — **Name**, **Department**, or **Salary** — to
    re-sort the table by that field (adds `?sort=name`, `?sort=dept`, or
    `?sort=salary` to the URL).
+4. To add a new professor, use the **Add Professor** form above the table:
+   enter a **name**, choose a **department**, enter a **salary**, and click
+   **Add Professor**. The new professor appears in the list immediately
+   (in its current sort order). Leaving a field blank or entering an
+   invalid salary reloads the page with a validation error instead of
+   creating the record.
 
 **Example output** (sorted by Salary, ascending):
 
@@ -68,6 +80,39 @@ returns a 403 Forbidden page.
 
 ---
 
+## F3 — Professor Performance (Admin)
+
+**Who can access it:** Admin only.
+
+**How to use it:**
+1. From the Dashboard, click **Professor Performance** (or visit
+   `/performance/`).
+2. Choose a **professor**, a **semester**, and type an **academic year**,
+   then click **Show Performance**. All three must be chosen — leaving any
+   one blank shows a reminder message instead of results.
+3. The page shows, for that professor:
+   - the number of course sections they taught in the chosen year/semester,
+   - the number of distinct students they taught in the chosen year/semester
+     (a student counted once even if enrolled in more than one of the
+     professor's sections that semester),
+   - the total dollar amount of funding they have secured (a career total,
+     not limited to the chosen semester), and
+   - the total number of papers they have published (also a career total).
+4. If the professor didn't teach any sections in the chosen year/semester,
+   the section and student counts show 0, while funding and papers still
+   show their career totals.
+
+**Example output** (Alice Chen, Fall 2025):
+
+| Metric | Value |
+|---|---|
+| Course sections taught | 2 |
+| Students taught | 2 |
+| Total funding secured | 150000.00 |
+| Papers published | 2 |
+
+---
+
 ## F4 — My Sections (Professor)
 
 **Who can access it:** Professors only, and only for sections they
@@ -81,6 +126,11 @@ record sees a warning instead of a table.
    type a **Year**, then click **Filter**.
 4. Each row shows the course, semester, year, and how many students are
    currently enrolled in that section.
+5. To create a new section that you teach, use the **Create Section** form
+   above the list: choose a **course**, a **semester**, and a **year**, then
+   click **Add Section**. The section is automatically credited to you
+   (the currently logged-in professor) — there is no field to pick a
+   different professor.
 
 **Example output** (logged in as `prof_test` / Alice Chen, filtered to
 Fall 2025):
@@ -104,6 +154,10 @@ editing the URL returns a 404 Not Found.
 2. Choose one of your sections from the **dropdown**.
 3. Click **View Roster**.
 4. The page lists the name of every student enrolled in that section.
+5. To enroll another student, use the **Enroll Student** form: choose a
+   student from the dropdown (only students not already enrolled in this
+   section are listed) and click **Enroll**. The roster refreshes to show
+   the newly enrolled student.
 
 **Example output** (Intro to Programming, Fall 2025):
 

@@ -47,6 +47,9 @@ class Enrollment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     section = models.ForeignKey(Section, on_delete=models.CASCADE)
 
+    class Meta:
+        unique_together = ("student", "section")
+
     def __str__(self):
         return f"{self.student.name} -> {self.section}"
 

@@ -257,6 +257,32 @@ class ProfessorRosterViewTests(TestCase):
         self.assertContains(response, "Zoe Adams")
         self.assertContains(response, "Alan Brooks")
 
+    def test_admin_can_create_professor(self):
+        self.client.login(username="admin1", password="testpass123")
+        response = self.client.post(
+            reverse("roster"),
+            {"name": "New Prof", "department": self.cs.id, "salary": "72000.00"},
+        )
+        self.assertRedirects(response, f"{reverse('roster')}?sort=name")
+        self.assertTrue(Professor.objects.filter(name="New Prof", department=self.cs).exists())
+
+    def test_create_professor_rejects_invalid_data(self):
+        self.client.login(username="admin1", password="testpass123")
+        response = self.client.post(
+            reverse("roster"),
+            {"name": "", "department": self.cs.id, "salary": "72000.00"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Professor.objects.filter(name="").exists())
+
+    def test_denies_non_admin_creating_professor(self):
+        self.client.login(username="student1", password="testpass123")
+        response = self.client.post(
+            reverse("roster"),
+            {"name": "New Prof", "department": self.cs.id, "salary": "72000.00"},
+        )
+        self.assertEqual(response.status_code, 403)
+
     def test_sort_by_name(self):
         self.client.login(username="admin1", password="testpass123")
         response = self.client.get(reverse("roster"), {"sort": "name"})
@@ -325,6 +351,79 @@ class SalaryTableViewTests(TestCase):
         self.assertContains(response, "Mathematics")
 
 
+class ProfessorPerformanceViewTests(TestCase):
+    def setUp(self):
+        self.cs = Department.objects.create(name="Computer Science")
+        self.alice = Professor.objects.create(name="Alice Chen", department=self.cs, salary="95000.00")
+        self.bob = Professor.objects.create(name="Bob Nguyen", department=self.cs, salary="85000.00")
+        self.intro_cs = Course.objects.create(title="Intro to Programming", department=self.cs)
+        self.db_course = Course.objects.create(title="Database Systems", department=self.cs)
+
+        self.sec_fall_intro = Section.objects.create(
+            course=self.intro_cs, professor=self.alice, semester="Fall", year=2025
+        )
+        self.sec_fall_db = Section.objects.create(
+            course=self.db_course, professor=self.alice, semester="Fall", year=2025
+        )
+        self.sec_spring = Section.objects.create(
+            course=self.intro_cs, professor=self.alice, semester="Spring", year=2026
+        )
+
+        self.students = [Student.objects.create(name=n) for n in ["Evan", "Fatima", "Grace"]]
+        # Evan is in both of Alice's Fall sections and should only count once.
+        Enrollment.objects.create(student=self.students[0], section=self.sec_fall_intro)
+        Enrollment.objects.create(student=self.students[0], section=self.sec_fall_db)
+        Enrollment.objects.create(student=self.students[1], section=self.sec_fall_db)
+
+        Funding.objects.create(professor=self.alice, amount="100000.00")
+        Funding.objects.create(professor=self.alice, amount="50000.00")
+        Paper.objects.create(professor=self.alice, title="Paper One")
+        Paper.objects.create(professor=self.alice, title="Paper Two")
+
+        self.admin_user = User.objects.create_user(username="admin1", password="testpass123")
+        UserProfile.objects.create(user=self.admin_user, role="admin")
+        self.student_user = User.objects.create_user(username="student1", password="testpass123")
+        UserProfile.objects.create(user=self.student_user, role="student")
+
+    def test_requires_login(self):
+        response = self.client.get(reverse("performance"))
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('performance')}")
+
+    def test_denies_non_admin_role(self):
+        self.client.login(username="student1", password="testpass123")
+        response = self.client.get(reverse("performance"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_no_selection_shows_no_stats(self):
+        self.client.login(username="admin1", password="testpass123")
+        response = self.client.get(reverse("performance"))
+        self.assertIsNone(response.context["stats"])
+
+    def test_performance_stats_for_chosen_semester(self):
+        self.client.login(username="admin1", password="testpass123")
+        response = self.client.get(
+            reverse("performance"),
+            {"professor_id": self.alice.id, "year": "2025", "semester": "Fall"},
+        )
+        stats = response.context["stats"]
+        self.assertEqual(stats["section_count"], 2)
+        self.assertEqual(stats["student_count"], 2)
+        self.assertEqual(stats["total_funding"], 150000)
+        self.assertEqual(stats["paper_count"], 2)
+
+    def test_semester_with_no_sections_still_shows_career_totals(self):
+        self.client.login(username="admin1", password="testpass123")
+        response = self.client.get(
+            reverse("performance"),
+            {"professor_id": self.bob.id, "year": "2025", "semester": "Fall"},
+        )
+        stats = response.context["stats"]
+        self.assertEqual(stats["section_count"], 0)
+        self.assertEqual(stats["student_count"], 0)
+        self.assertEqual(stats["total_funding"], 0)
+        self.assertEqual(stats["paper_count"], 0)
+
+
 class MySectionsViewTests(TestCase):
     def setUp(self):
         self.cs = Department.objects.create(name="Computer Science")
@@ -384,6 +483,25 @@ class MySectionsViewTests(TestCase):
         response = self.client.get(reverse("my_sections"))
         self.assertTrue(response.context["no_professor"])
 
+    def test_professor_can_create_own_section(self):
+        self.client.login(username="prof_alice", password="testpass123")
+        response = self.client.post(
+            reverse("my_sections"),
+            {"course": self.intro_cs.id, "semester": "Summer", "year": "2026"},
+        )
+        self.assertRedirects(response, reverse("my_sections"))
+        section = Section.objects.get(professor=self.alice, semester="Summer", year=2026)
+        self.assertEqual(section.course, self.intro_cs)
+
+    def test_create_section_rejects_invalid_semester(self):
+        self.client.login(username="prof_alice", password="testpass123")
+        response = self.client.post(
+            reverse("my_sections"),
+            {"course": self.intro_cs.id, "semester": "NotASemester", "year": "2026"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Section.objects.filter(professor=self.alice, semester="NotASemester").exists())
+
 
 class SectionRosterViewTests(TestCase):
     def setUp(self):
@@ -425,6 +543,39 @@ class SectionRosterViewTests(TestCase):
         self.client.login(username="prof_alice", password="testpass123")
         response = self.client.get(reverse("section_roster"))
         self.assertIsNone(response.context["chosen_section"])
+
+    def test_professor_can_enroll_student_in_own_section(self):
+        new_student = Student.objects.create(name="Grace Kim")
+        self.client.login(username="prof_alice", password="testpass123")
+        response = self.client.post(
+            reverse("section_roster"),
+            {"section_id": self.sec_alice.id, "student": new_student.id},
+        )
+        self.assertRedirects(response, f"{reverse('section_roster')}?section_id={self.sec_alice.id}")
+        self.assertTrue(
+            Enrollment.objects.filter(section=self.sec_alice, student=new_student).exists()
+        )
+
+    def test_cannot_enroll_already_enrolled_student_twice(self):
+        self.client.login(username="prof_alice", password="testpass123")
+        response = self.client.post(
+            reverse("section_roster"),
+            {"section_id": self.sec_alice.id, "student": self.students[0].id},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            Enrollment.objects.filter(section=self.sec_alice, student=self.students[0]).count(), 1
+        )
+
+    def test_cannot_enroll_student_into_another_professors_section(self):
+        new_student = Student.objects.create(name="Grace Kim")
+        self.client.login(username="prof_alice", password="testpass123")
+        response = self.client.post(
+            reverse("section_roster"),
+            {"section_id": self.sec_bob.id, "student": new_student.id},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Enrollment.objects.filter(section=self.sec_bob, student=new_student).exists())
 
 
 class CourseSearchViewTests(TestCase):

@@ -8,6 +8,30 @@
     Your account is not linked to a Professor record. Ask an admin to fix your UserProfile.
 </div>
 {% else %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5 card-title">Create Section</h2>
+        <form method="post" class="row g-2">
+            {% csrf_token %}
+            <div class="col-auto">
+                {{ form.course }}
+                {% for error in form.course.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-auto">
+                {{ form.semester }}
+                {% for error in form.semester.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-auto">
+                {{ form.year }}
+                {% for error in form.year.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" type="submit">Add Section</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <form method="get" class="row g-2 mb-3">
     <div class="col-auto">
         <select class="form-select" name="semester">
